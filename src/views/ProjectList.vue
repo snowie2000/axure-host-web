@@ -1,5 +1,12 @@
 <template>
   <div style="position: relative">
+    <div class="search-bar">
+      <el-input v-model="keyword" placeholder="搜索项目" clearable class="search-input">
+        <template #prefix>
+          <Search style="width: 1em; height: 1em" />
+        </template>
+      </el-input>
+    </div>
     <TransitionGroup name="slide" :css="animate">
       <ProjectItem
         v-for="prj in displayProjects"
@@ -29,15 +36,28 @@ import axios from 'axios'
 import ProjectItem from './ProjectItem.vue'
 import { ElMessageBox } from 'element-plus'
 import NewProject from './NewProject.vue'
+import { Search } from '@element-plus/icons-vue'
+import { pinyin } from '@/pinyin'
+
 defineExpose({ newProject })
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const dlgNewPrj = ref<any>(null)
 const animate = ref(false)
+const keyword = ref('')
 const projects = ref<ProjectInfo[]>([])
 const displayProjects = computed(() => {
   const start = (pageInfo.page - 1) * pageInfo.pageSize
-  return projects.value.slice(start, start + pageInfo.pageSize)
+  const filteredProjects = keyword.value
+    ? projects.value.filter(
+        (prj) =>
+          prj.py.includes(keyword.value.toLowerCase()) ||
+          prj.pinyin.includes(keyword.value.toLowerCase()) ||
+          prj.name.toLowerCase().includes(keyword.value.toLowerCase()) ||
+          prj.desc.toLowerCase().includes(keyword.value.toLowerCase()),
+      )
+    : projects.value
+  return filteredProjects.slice(start, start + pageInfo.pageSize)
 })
 
 const pageInfo = reactive({
@@ -48,6 +68,14 @@ const pageInfo = reactive({
 function loadProjects() {
   axios.get('/api/list').then((res) => {
     animate.value = true
+    // 补全没有拼音信息的项目，老项目没有此字段
+    res.data.forEach((prj: ProjectInfo) => {
+      if (!prj.py) {
+        const pyinfo = pinyin(prj.name + prj.desc)
+        prj.py = pyinfo.py
+        prj.pinyin = pyinfo.pinyin
+      }
+    })
     projects.value = res.data ?? []
     nextTick(() => {
       animate.value = false
@@ -103,5 +131,21 @@ onMounted(() => {
 .slide-leave-to {
   opacity: 0;
   transform: translate(30px, 0);
+}
+
+.search-bar {
+  margin-bottom: 10px;
+
+  .search-input {
+    ::v-deep(.el-input__wrapper) {
+      box-shadow: none;
+      border-radius: 15px;
+      background: #f8f8f8;
+
+      &.is-focus {
+        box-shadow: 0 0 0 2px #409eff inset;
+      }
+    }
+  }
 }
 </style>

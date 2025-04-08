@@ -29,6 +29,7 @@ import DragDropZone from './DragDropZone.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import axios, { AxiosError } from 'axios'
 import type { ProjectInfo } from '@/typing.d/project'
+import { pinyin } from '@/pinyin'
 
 defineExpose({ showCreate, showEdit })
 const emit = defineEmits(['success'])
@@ -63,12 +64,16 @@ function handleFileChange(f: Blob | File, filename: string) {
 }
 
 function doSubmit() {
+  const pyinfo = pinyin(projectInfo.name + projectInfo.desc)
+
   loading.value = true
   const formData = new FormData()
   formData.append('id', projectInfo.id)
   formData.append('name', projectInfo.name)
   formData.append('desc', projectInfo.desc)
   formData.append('action', projectInfo.action)
+  formData.append('pinyin', pyinfo.pinyin) // 提交拼音全称
+  formData.append('py', pyinfo.py) // 提交拼音首字母
   if (projectInfo.file) formData.append('file', projectInfo.file)
   axios
     .post('/api/upload', formData)
@@ -92,6 +97,7 @@ function handleSubmit() {
   }
   if (!projectInfo.file && projectInfo.action === 'add') {
     ElMessage.error('项目文件不能为空')
+    return
   }
   if (!projectInfo.file) {
     ElMessageBox.confirm('您未上传新的项目原型，要继续沿用上一次的原型吗？', '提示', {

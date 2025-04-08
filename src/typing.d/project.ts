@@ -3,4 +3,6 @@ export interface ProjectInfo {
   name: string
   desc: string
   date: string
+  pinyin: string
+  py: string
 }

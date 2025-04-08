@@ -3,7 +3,7 @@
   <div>
     <h1 class="head-line flex">
       <div><img :src="AxureLogo" height="20px" /> Projects</div>
-      <el-button type="primary" size="mini" @click="handleNewPrj">创建</el-button>
+      <el-button type="primary" size="default" @click="handleNewPrj">创建</el-button>
     </h1>
   </div>
   <div id="projects">
@@ -30,7 +30,7 @@ function handleNewPrj() {
 }
 
 .head-line {
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   padding: 0 15px;
   justify-content: space-between;
   align-items: center;
