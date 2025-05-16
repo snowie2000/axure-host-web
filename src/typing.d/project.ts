@@ -5,4 +5,5 @@ export interface ProjectInfo {
   date: string
   pinyin: string
   py: string
+  tag: string[]
 }

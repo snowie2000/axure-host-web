@@ -5,12 +5,20 @@
     id="project-editor"
     :close-on-click-modal="false"
   >
-    <el-form>
+    <el-form label-width="auto">
       <el-form-item label="项目名称">
         <el-input v-model="projectInfo.name" />
       </el-form-item>
       <el-form-item label="项目描述">
         <el-input v-model="projectInfo.desc" />
+      </el-form-item>
+      <el-form-item label="Tag">
+        <el-input-tag
+          v-model="projectInfo.tag"
+          tag-effect="dark"
+          tag-type="primary"
+          trigger="Space"
+        />
       </el-form-item>
       <el-form-item label="项目文件">
         <DragDropZone @change="handleFileChange" :file-name="projectInfo.filename" />
@@ -41,6 +49,7 @@ const projectInfo = reactive({
   id: '',
   name: '',
   desc: '',
+  tag: [] as string[],
   file: null as File | Blob | null,
   filename: '',
 })
@@ -56,6 +65,7 @@ function showEdit(project: ProjectInfo) {
   projectInfo.id = project.id
   projectInfo.name = project.name
   projectInfo.desc = project.desc
+  projectInfo.tag = project.tag
 }
 
 function handleFileChange(f: Blob | File, filename: string) {
@@ -74,6 +84,9 @@ function doSubmit() {
   formData.append('action', projectInfo.action)
   formData.append('pinyin', pyinfo.pinyin) // 提交拼音全称
   formData.append('py', pyinfo.py) // 提交拼音首字母
+  projectInfo.tag.forEach((tag) => {
+    formData.append('tag', tag)
+  })
   if (projectInfo.file) formData.append('file', projectInfo.file)
   axios
     .post('/api/upload', formData)
@@ -118,6 +131,7 @@ watch(open, (val) => {
     projectInfo.desc = ''
     projectInfo.file = null
     projectInfo.filename = ''
+    projectInfo.tag = []
   }
 })
 </script>

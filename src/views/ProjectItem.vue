@@ -15,6 +15,11 @@
     </div>
     <div class="project-desc" v-if="project.desc">{{ project.desc }}</div>
     <div class="project-desc" v-else><i>未提供项目描述</i></div>
+    <div class="tags" v-if="(project.tag || []).length">
+      <el-tag class="tag" v-for="item in project.tag" :key="item" :type="item" effect="light">
+        {{ item }}
+      </el-tag>
+    </div>
   </el-card>
 </template>
 
@@ -99,6 +104,16 @@ onUnmounted(() => {
     flex: 0 0 200px;
     text-align: right;
     gap: 10px;
+  }
+
+  .tags {
+    .tag {
+      margin-top: 2px;
+      color: #409eff;
+    }
+    .tag + .tag {
+      margin-left: 5px;
+    }
   }
 }
 </style>
