@@ -16,7 +16,13 @@
     <div class="project-desc" v-if="project.desc">{{ project.desc }}</div>
     <div class="project-desc" v-else><i>未提供项目描述</i></div>
     <div class="tags" v-if="(project.tag || []).length">
-      <el-tag class="tag" v-for="item in project.tag" :key="item" :type="item" effect="light">
+      <el-tag
+        class="tag"
+        v-for="item in project.tag"
+        :key="item"
+        effect="light"
+        @click="emit('tag-click', item)"
+      >
         {{ item }}
       </el-tag>
     </div>
@@ -32,7 +38,7 @@ import { onUnmounted, ref, watch } from 'vue'
 const props = defineProps<{
   project: ProjectInfo
 }>()
-const emit = defineEmits(['delete', 'update'])
+const emit = defineEmits(['delete', 'update', 'tag-click'])
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const btnLink = ref<any>(null)
@@ -108,8 +114,9 @@ onUnmounted(() => {
 
   .tags {
     .tag {
-      margin-top: 2px;
+      margin-top: 4px;
       color: #409eff;
+      cursor: pointer;
     }
     .tag + .tag {
       margin-left: 5px;

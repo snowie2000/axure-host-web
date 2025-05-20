@@ -9,7 +9,6 @@
         placeholder="搜索项目, 使用 # 搜索tag"
         clearable
         class="search-input"
-        @search="handleSearch"
       >
         <template #prefix>
           <Search style="width: 1em; height: 1em" />
@@ -23,6 +22,7 @@
         :project="prj"
         @delete="() => handleDelete(prj)"
         @update="() => handleUpdate(prj)"
+        @tag-click="handleAddTag"
       />
     </TransitionGroup>
 
@@ -34,12 +34,19 @@
       :page-size="pageInfo.pageSize"
       @change="handlePageChange"
     />
-    <NewProject ref="dlgNewPrj" @success="loadProjects" />
+    <NewProject ref="dlgNewPrj" :tags="simpleTagList" @success="loadProjects" />
   </div>
+  <TagView
+    v-if="tagViewShow"
+    :tags="tagWithPercent"
+    :selected="searchTagSet"
+    @select="handleAddTag"
+    @unselect="handleDeleteTag"
+  />
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, nextTick } from 'vue'
+import { computed, onMounted, reactive, ref, nextTick, onUnmounted } from 'vue'
 import type { ProjectInfo } from '@/typing.d/project'
 import axios from 'axios'
 import ProjectItem from './ProjectItem.vue'
@@ -47,6 +54,7 @@ import { ElMessageBox, type MentionOption } from 'element-plus'
 import NewProject from './NewProject.vue'
 import { Search } from '@element-plus/icons-vue'
 import { pinyin } from '@/pinyin'
+import TagView from './TagView.vue'
 
 defineExpose({ newProject })
 
@@ -56,22 +64,32 @@ const animate = ref(false)
 const keyword = ref('')
 const projects = ref<ProjectInfo[]>([])
 const tagMap = ref(new Map<string, number>())
-const displayProjects = computed(() => {
-  // separate keyword from tags
+const tagViewShow = ref(false)
+
+const searchTagList = computed(() => {
   const matches = keyword.value.matchAll(/#(.+?)\s/gi)
   const tagList = Array.from(matches)
     .map((it) => it[1])
     .filter((it) => tagMap.value.has(it)) // 只搜索存在的tag
+  return tagList
+})
+
+const searchTagSet = computed(() => new Set(searchTagList.value))
+
+const searchKeyword = computed(() => {
   let pureKeyword = keyword.value.replace(/(#[^\s]+)/gi, '').replace(/(#\s*)$/gi, '')
   pureKeyword = pureKeyword.trim().toLowerCase()
+  return pureKeyword
+})
 
+const displayProjects = computed(() => {
   const start = (pageInfo.page - 1) * pageInfo.pageSize
   // 按tag搜索，要求的tag必须全部存在
-  let filteredProjects = tagList.length
+  let filteredProjects = searchTagList.value.length
     ? projects.value.filter((prj) => {
-        if (tagList.length) {
+        if (searchTagList.value.length) {
           const tagSet = new Set(prj.tag || [])
-          if (tagList.some((tag) => !tagSet.has(tag))) {
+          if (searchTagList.value.some((tag) => !tagSet.has(tag))) {
             return false
           }
         }
@@ -80,13 +98,13 @@ const displayProjects = computed(() => {
     : projects.value
 
   // 按其他条件搜索
-  filteredProjects = pureKeyword
+  filteredProjects = searchKeyword.value
     ? filteredProjects.filter(
         (prj) =>
-          prj.py.includes(pureKeyword) ||
-          prj.pinyin.includes(pureKeyword) ||
-          prj.name.toLowerCase().includes(pureKeyword) ||
-          prj.desc.toLowerCase().includes(pureKeyword),
+          prj.py.includes(searchKeyword.value) ||
+          prj.pinyin.includes(searchKeyword.value) ||
+          prj.name.toLowerCase().includes(searchKeyword.value) ||
+          prj.desc.toLowerCase().includes(searchKeyword.value),
       )
     : filteredProjects
   return filteredProjects.slice(start, start + pageInfo.pageSize)
@@ -98,6 +116,28 @@ const tags = computed<MentionOption[]>(() => {
       value: tag,
     }
   })
+})
+
+const tagWithPercent = computed(() => {
+  let total = 0
+  tagMap.value.forEach((count) => {
+    total += count * count
+  })
+  return Array.from(tagMap.value.entries())
+    .map(([tag, count]) => {
+      return {
+        name: tag,
+        percentage: (count * count) / total,
+      }
+    })
+    .sort((a, b) => {
+      const ret = b.percentage - a.percentage
+      return ret === 0 ? a.name.localeCompare(b.name) : ret
+    })
+})
+
+const simpleTagList = computed(() => {
+  return tagWithPercent.value.map((tag) => tag.name)
 })
 
 const pageInfo = reactive({
@@ -130,12 +170,6 @@ function loadProjects() {
   })
 }
 
-function handleSearch(keyword: string, prefix: string) {
-  if (prefix === '#') {
-    tags.value = [{ value: '123' }, { value: '456' }]
-  }
-}
-
 function newProject() {
   dlgNewPrj.value.showCreate()
 }
@@ -157,13 +191,63 @@ function handleDelete(prj: ProjectInfo) {
   })
 }
 
+// 处理tag的添加和删除
+function handleAddTag(tag: string) {
+  if (searchTagSet.value.has(tag)) {
+    return
+  }
+  rebuildKeyword([...searchTagList.value, tag])
+}
+
+function handleDeleteTag(tag: string) {
+  if (!searchTagSet.value.has(tag)) {
+    return
+  }
+  const newTagList = searchTagList.value.filter((it) => it !== tag)
+  rebuildKeyword(newTagList)
+}
+
+// 从taglist和searchKeyword重建keyword
+function rebuildKeyword(tagList: string[]) {
+  keyword.value =
+    tagList.reduce((acc, tag) => {
+      return acc + `#${tag} `
+    }, '') + searchKeyword.value
+}
+
 function handlePageChange(page: number, pageSize: number) {
   pageInfo.page = page
   pageInfo.pageSize = pageSize
 }
 
+function handleShowView(event: KeyboardEvent) {
+  if (event.key === 'Tab') {
+    event.preventDefault() // Prevent default tab behavior
+    if (!tagViewShow.value) {
+      tagViewShow.value = true
+    }
+  }
+}
+
+function handleHideView(event: KeyboardEvent) {
+  if (event.key === 'Tab' && tagViewShow.value) {
+    event.preventDefault() // Prevent default tab behavior
+    tagViewShow.value = false
+  }
+}
+
 onMounted(() => {
   loadProjects()
+})
+
+onMounted(() => {
+  document.addEventListener('keydown', handleShowView)
+  document.addEventListener('keyup', handleHideView)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleShowView)
+  document.removeEventListener('keyup', handleHideView)
 })
 </script>
 

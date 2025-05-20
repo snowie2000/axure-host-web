@@ -13,12 +13,23 @@
         <el-input v-model="projectInfo.desc" />
       </el-form-item>
       <el-form-item label="Tag">
-        <el-input-tag
+        <el-select
           v-model="projectInfo.tag"
-          tag-effect="dark"
+          multiple
+          filterable
+          allow-create
+          default-first-option
+          :reserve-keyword="false"
           tag-type="primary"
-          trigger="Space"
-        />
+          placeholder="选择或输入项目 Tag"
+        >
+          <el-option
+            v-for="item in existingTags"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
       </el-form-item>
       <el-form-item label="项目文件">
         <DragDropZone @change="handleFileChange" :file-name="projectInfo.filename" />
@@ -32,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch, type PropType } from 'vue'
 import DragDropZone from './DragDropZone.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import axios, { AxiosError } from 'axios'
@@ -41,7 +52,19 @@ import { pinyin } from '@/pinyin'
 
 defineExpose({ showCreate, showEdit })
 const emit = defineEmits(['success'])
+const props = defineProps({
+  tags: {
+    type: Array as PropType<string[]>,
+    default: () => [],
+  },
+})
 
+const existingTags = computed(() => {
+  return props.tags.map((tag) => ({
+    label: tag,
+    value: tag,
+  }))
+})
 const open = ref(false)
 const loading = ref(false)
 const projectInfo = reactive({
