@@ -1,27 +1,29 @@
 <template>
-  <div class="mask dark">
+  <div class="mask dark" @click="handleMaskClick">
     <div class="tag-container">
-      <div
-        class="tag"
-        v-for="(tag, idx) in tags"
-        :key="tag.name"
-        :class="{
-          red: idx === 0,
-          orange: idx === 1,
-          yellow: idx === 2,
-          checked: selected.has(tag.name),
-        }"
-        :style="{ fontSize: `${Math.round(14 + tag.percentage * 40)}px` }"
-        @click="handleCheckToggle(tag.name)"
-      >
-        {{ tag.name }}
-      </div>
+      <TransitionGroup name="slide">
+        <div
+          class="tag"
+          v-for="(tag, idx) in tagsAnimate"
+          :key="tag.name"
+          :class="{
+            red: idx === 0,
+            orange: idx === 1,
+            yellow: idx === 2,
+            checked: selected.has(tag.name),
+          }"
+          :style="{ fontSize: `${Math.round(14 + tag.percentage * 40)}px` }"
+          @click="handleCheckToggle(tag.name, $event)"
+        >
+          {{ tag.name }}
+        </div>
+      </TransitionGroup>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { type PropType } from 'vue'
+import { onMounted, ref, type PropType } from 'vue'
 
 export interface Tag {
   name: string
@@ -40,14 +42,26 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['select', 'unselect'])
+const emit = defineEmits(['select', 'unselect', 'close'])
+const tagsAnimate = ref<Tag[]>([])
 
-function handleCheckToggle(tagName: string) {
+onMounted(() => {
+  setTimeout(() => {
+    tagsAnimate.value = props.tags
+  }, 0)
+})
+
+function handleCheckToggle(tagName: string, e: Event) {
+  e.stopPropagation()
   if (props.selected.has(tagName)) {
     emit('unselect', tagName)
   } else {
     emit('select', tagName)
   }
+}
+
+function handleMaskClick() {
+  emit('close')
 }
 </script>
 
@@ -74,18 +88,19 @@ function handleCheckToggle(tagName: string) {
 
 .tag {
   position: relative;
-  padding: 5px 20px;
-  border-bottom: 1px solid transparent;
+  padding: 5px 40px 5px 20px;
+  border-left: 2px solid transparent;
   background: transparent;
   white-space: nowrap; /* Prevent tags from wrapping within their grid item */
   cursor: default;
   height: auto;
   --tag-color: 255, 255, 255;
   color: rgb(var(--tag-color));
-  text-shadow: 0 0 60px rgb(255, 255, 255, 0.5);
+  // text-shadow: 0 0 60px rgb(255, 255, 255, 0.5);
+  text-shadow: 2px 1px 4px #ffffff61;
 
   &:hover {
-    border-bottom: 1px solid rgb(var(--tag-color));
+    border-left: 2px solid rgb(var(--tag-color));
     background: linear-gradient(
       to right,
       rgba(var(--tag-color), 0.25),
@@ -137,13 +152,15 @@ function handleCheckToggle(tagName: string) {
   &.green {
     --tag-color: 0, 200, 81;
   }
+
+  &.gold {
+    --tag-color: 242, 211, 96;
+  }
 }
 
 .mask {
   backdrop-filter: blur(2px);
   position: fixed;
-  opacity: 0;
-  animation: fadeIn 0.2s forwards;
   top: 0;
   left: 0;
   width: 100%;
@@ -155,5 +172,19 @@ function handleCheckToggle(tagName: string) {
   &.dark {
     background-color: rgba(0, 0, 0, 0.5);
   }
+}
+
+.slide-move,
+.slide-enter-active,
+.slide-leave-active {
+  transition:
+    transform 0.5s cubic-bezier(0.55, 0, 0.1, 1),
+    opacity 0.5s cubic-bezier(0.55, 0, 0.1, 1);
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
+  transform: translate(-30px, 0);
 }
 </style>

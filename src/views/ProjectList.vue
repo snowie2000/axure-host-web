@@ -30,19 +30,22 @@
       :hide-on-single-page="true"
       layout="prev, pager, next"
       :page-sizes="[10, 20, 50, 100]"
-      :total="projects.length"
+      :total="filteredProjects.length"
       :page-size="pageInfo.pageSize"
       @change="handlePageChange"
     />
     <NewProject ref="dlgNewPrj" :tags="simpleTagList" @success="loadProjects" />
   </div>
-  <TagView
-    v-if="tagViewShow"
-    :tags="tagWithPercent"
-    :selected="searchTagSet"
-    @select="handleAddTag"
-    @unselect="handleDeleteTag"
-  />
+  <Transition name="fade">
+    <TagView
+      v-if="tagViewShow"
+      :tags="tagWithPercent"
+      :selected="searchTagSet"
+      @select="handleAddTag"
+      @unselect="handleDeleteTag"
+      @close="handleManualClose"
+    />
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -82,10 +85,8 @@ const searchKeyword = computed(() => {
   return pureKeyword
 })
 
-const displayProjects = computed(() => {
-  const start = (pageInfo.page - 1) * pageInfo.pageSize
-  // 按tag搜索，要求的tag必须全部存在
-  let filteredProjects = searchTagList.value.length
+const filteredProjects = computed(() => {
+  let result = searchTagList.value.length
     ? projects.value.filter((prj) => {
         if (searchTagList.value.length) {
           const tagSet = new Set(prj.tag || [])
@@ -98,16 +99,21 @@ const displayProjects = computed(() => {
     : projects.value
 
   // 按其他条件搜索
-  filteredProjects = searchKeyword.value
-    ? filteredProjects.filter(
+  result = searchKeyword.value
+    ? result.filter(
         (prj) =>
           prj.py.includes(searchKeyword.value) ||
           prj.pinyin.includes(searchKeyword.value) ||
           prj.name.toLowerCase().includes(searchKeyword.value) ||
           prj.desc.toLowerCase().includes(searchKeyword.value),
       )
-    : filteredProjects
-  return filteredProjects.slice(start, start + pageInfo.pageSize)
+    : result
+  return result
+})
+
+const displayProjects = computed(() => {
+  const start = (pageInfo.page - 1) * pageInfo.pageSize
+  return filteredProjects.value.slice(start, start + pageInfo.pageSize)
 })
 
 const tags = computed<MentionOption[]>(() => {
@@ -207,6 +213,10 @@ function handleDeleteTag(tag: string) {
   rebuildKeyword(newTagList)
 }
 
+function handleManualClose() {
+  tagViewShow.value = false
+}
+
 // 从taglist和searchKeyword重建keyword
 function rebuildKeyword(tagList: string[]) {
   keyword.value =
@@ -220,18 +230,37 @@ function handlePageChange(page: number, pageSize: number) {
   pageInfo.pageSize = pageSize
 }
 
+let tabStart = 0,
+  tabDown = false
 function handleShowView(event: KeyboardEvent) {
   if (event.key === 'Tab') {
     event.preventDefault() // Prevent default tab behavior
+    if (tagViewShow.value && tabDown) {
+      // holding the tab key, ignore the consecutive keydown event
+      return
+    }
+    // press the tab key for the first time to show
     if (!tagViewShow.value) {
+      // get timestamp
+      tabDown = true
+      tabStart = Date.now()
       tagViewShow.value = true
+    } else {
+      // press the tab key for the second time to hide
+      tabDown = false
+      tagViewShow.value = false
     }
   }
 }
 
 function handleHideView(event: KeyboardEvent) {
   if (event.key === 'Tab' && tagViewShow.value) {
+    tabDown = false
     event.preventDefault() // Prevent default tab behavior
+    const tabEnd = Date.now()
+    if (tabEnd - tabStart < 500) {
+      return // a short press is considered to be a toggle action.
+    }
     tagViewShow.value = false
   }
 }
@@ -268,6 +297,16 @@ onUnmounted(() => {
 .slide-leave-to {
   opacity: 0;
   transform: translate(30px, 0);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 .search-bar {

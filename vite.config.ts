@@ -15,7 +15,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: `http://127.0.0.1:80`, // 后台接口前缀
+        target: `https://ui.wocai.net`, // 后台接口前缀
         changeOrigin: true, // 是否允许跨域
         secure: false, // 如果是https接口，需要配置这个参数
         // rewrite: (path) => path.replace(/^\/api/, ""),
